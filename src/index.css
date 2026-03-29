@@ -1,0 +1,45 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap');
+
+@theme {
+  --font-sans: 'Montserrat', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+}
+
+:root {
+  background-color: #0a0a0a;
+  color: #e5e5e5;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+}
+
+.gold-accent {
+  color: #d4af37;
+}
+
+.bg-gold {
+  background-color: #d4af37;
+}
+
+.border-gold {
+  border-color: #d4af37;
+}
+
+.pizza-card:hover {
+  transform: translateY(-5px);
+  transition: all 0.3s ease;
+  border-color: #d4af37;
+}
+
+.sticky-header {
+  backdrop-filter: blur(10px);
+  background-color: rgba(10, 10, 10, 0.8);
+}
