@@ -106,7 +106,18 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
-          <h1 className="text-3xl font-bold gold-accent italic">Pizzeria Dashboard</h1>
+          <h1
+            className="text-3xl font-bold gold-accent italic cursor-pointer select-none"
+            onClick={() => navigate('/')}
+            role="link"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') navigate('/');
+            }}
+            aria-label="Go to homepage"
+          >
+            Pizzeria Dashboard
+          </h1>
           <div className="flex gap-4">
             <button onClick={() => navigate('/')} className="text-gray-400 hover:text-white transition">View Site</button>
             <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">Logout</button>

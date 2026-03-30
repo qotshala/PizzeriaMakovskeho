@@ -8,7 +8,18 @@ const Header: React.FC<HeaderProps> = ({ phone }) => {
   return (
     <header className="fixed w-full z-50 sticky-header border-b border-gray-800">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <div className="flex flex-col">
+        <div
+          className="flex flex-col cursor-pointer select-none"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          role="link"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          aria-label="Scroll to top"
+        >
           <span className="text-2xl font-bold gold-accent tracking-tighter leading-none">PIZZERIA</span>
           <span className="text-xl font-light tracking-[0.2em] text-white">MAKOVSKÉHO</span>
         </div>
