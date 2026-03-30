@@ -4,9 +4,10 @@ import { useAppData } from '../hooks/useAppData';
 import { Pizza } from '../data/pizzas';
 
 const Dashboard: React.FC = () => {
-  const { data, updateData } = useAppData();
+  const { data, updateData, storageError } = useAppData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'hero' | 'menuA' | 'menuB' | 'info'>('hero');
+  const [lastAddedPizzaId, setLastAddedPizzaId] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = localStorage.getItem('pizzeria_auth');
@@ -22,13 +23,23 @@ const Dashboard: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        callback(reader.result as string);
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        callback(canvas.toDataURL('image/jpeg', 0.7));
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleHeroChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -87,11 +98,20 @@ const Dashboard: React.FC = () => {
   };
 
   const addPizza = (section: 'pizzaA' | 'pizzaB') => {
-    const newPizza: Pizza = { name: 'New Pizza', desc: 'Description', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600' };
+    const newPizza: Pizza = {
+      id: (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
+      name: 'Nová pizza',
+      desc: 'Popis',
+      img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&q=80&w=600'
+    };
     updateData({
       ...data,
-      menu: { ...data.menu, [section]: [...data.menu[section], newPizza] }
+      menu: { ...data.menu, [section]: [newPizza, ...data.menu[section]] }
     });
+    setLastAddedPizzaId(newPizza.id ?? null);
+    window.setTimeout(() => setLastAddedPizzaId(null), 260);
   };
 
   const removePizza = (section: 'pizzaA' | 'pizzaB', index: number) => {
@@ -114,15 +134,21 @@ const Dashboard: React.FC = () => {
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') navigate('/');
             }}
-            aria-label="Go to homepage"
+            aria-label="Přejít na hlavní stránku"
           >
-            Pizzeria Dashboard
+            Přehled pizzerie
           </h1>
           <div className="flex gap-4">
-            <button onClick={() => navigate('/')} className="text-gray-400 hover:text-white transition">View Site</button>
-            <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">Logout</button>
+            <button onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">Odhlásit se</button>
           </div>
         </div>
+
+        {storageError && (
+          <div className="mb-6 bg-red-900/60 border border-red-500 text-red-200 px-4 py-3 rounded-xl text-sm flex justify-between items-center gap-4">
+            <span>⚠ {storageError}</span>
+            <button onClick={() => updateData({ ...data })} className="underline text-red-300 hover:text-white whitespace-nowrap">Zavřít</button>
+          </div>
+        )}
 
         <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
           {(['hero', 'menuA', 'menuB', 'info'] as const).map((tab) => (
@@ -131,7 +157,7 @@ const Dashboard: React.FC = () => {
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-2 rounded-full font-bold transition uppercase tracking-widest text-sm whitespace-nowrap ${activeTab === tab ? 'bg-gold text-black' : 'bg-zinc-900 text-gray-400 hover:text-white'}`}
             >
-              {tab === 'hero' ? 'Hero Section' : tab === 'menuA' ? 'Pizza Section A' : tab === 'menuB' ? 'Pizza Section B' : 'General Info'}
+              {tab === 'hero' ? 'Sekce Hero' : tab === 'menuA' ? 'Pizza sekce A' : tab === 'menuB' ? 'Pizza sekce B' : 'Obecné informace'}
             </button>
           ))}
         </div>
@@ -139,23 +165,23 @@ const Dashboard: React.FC = () => {
         <div className="bg-zinc-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
           {activeTab === 'hero' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-4 italic">Hero Section Settings</h2>
+              <h2 className="text-2xl font-bold mb-4 italic">Nastavení sekce Hero</h2>
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Title Accent</label>
+                <label className="block text-gray-400 text-sm mb-1">Název (akcent)</label>
                 <input type="text" name="title" value={data.hero.title} onChange={handleHeroChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
               </div>
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Subtitle</label>
+                <label className="block text-gray-400 text-sm mb-1">Podtitul</label>
                 <textarea name="subtitle" value={data.hero.subtitle} onChange={handleHeroChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold h-24" />
               </div>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-gray-400 text-sm mb-1">Hero Background Image URL</label>
+                  <label className="block text-gray-400 text-sm mb-1">URL obrázku pozadí Hero</label>
                   <input type="text" name="bgImage" value={data.hero.bgImage} onChange={handleHeroChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold mb-2" />
                   <div className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-gray-700 hover:border-gold transition h-40">
-                    <img src={data.hero.bgImage} className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition" alt="Hero Preview" />
+                    <img src={data.hero.bgImage} className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition" alt="Náhled Hero" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-bold uppercase tracking-widest bg-black/50 px-4 py-2 rounded">Tap to Upload Photo</span>
+                      <span className="text-sm font-bold uppercase tracking-widest bg-black/50 px-4 py-2 rounded">Klepněte pro nahrání fotky</span>
                     </div>
                     <input 
                       type="file" 
@@ -166,8 +192,8 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-gray-800 md:pl-6">
-                  <h2 className="text-2xl font-bold mb-4 italic">Global Background</h2>
-                  <label className="block text-gray-400 text-sm mb-1">Overall Site Background Image URL</label>
+                  <h2 className="text-2xl font-bold mb-4 italic">Globální pozadí</h2>
+                  <label className="block text-gray-400 text-sm mb-1">URL obrázku pozadí celého webu</label>
                   <input 
                     type="text" 
                     value={data.globalBgImage} 
@@ -175,9 +201,9 @@ const Dashboard: React.FC = () => {
                     className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold mb-2" 
                   />
                   <div className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-gray-700 hover:border-gold transition h-40">
-                    <img src={data.globalBgImage} className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition" alt="Global Preview" />
+                    <img src={data.globalBgImage} className="w-full h-full object-cover opacity-50 group-hover:opacity-70 transition" alt="Náhled globálního pozadí" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-bold uppercase tracking-widest bg-black/50 px-4 py-2 rounded">Tap to Upload Photo</span>
+                      <span className="text-sm font-bold uppercase tracking-widest bg-black/50 px-4 py-2 rounded">Klepněte pro nahrání fotky</span>
                     </div>
                     <input 
                       type="file" 
@@ -194,16 +220,19 @@ const Dashboard: React.FC = () => {
           {(activeTab === 'menuA' || activeTab === 'menuB') && (
             <div className="space-y-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold italic">{activeTab === 'menuA' ? 'Section A' : 'Section B'} Pizzas</h2>
-                <button onClick={() => addPizza(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB')} className="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-yellow-600 transition">+ Add Pizza</button>
+                <h2 className="text-2xl font-bold italic">Pizzy – {activeTab === 'menuA' ? 'sekce A' : 'sekce B'}</h2>
+                <button onClick={() => addPizza(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB')} className="bg-gold text-black px-4 py-2 rounded font-bold hover:bg-yellow-600 transition cursor-pointer">+ Přidat pizzu</button>
               </div>
               <div className="grid gap-6">
                 {data.menu[activeTab === 'menuA' ? 'pizzaA' : 'pizzaB'].map((pizza, index) => (
-                  <div key={index} className="bg-black p-4 rounded-xl border border-gray-800 flex flex-col md:flex-row gap-4">
+                  <div
+                    key={pizza.id ?? index}
+                    className={`bg-black p-4 rounded-xl border border-gray-800 flex flex-col md:flex-row gap-4 ${pizza.id && pizza.id === lastAddedPizzaId ? 'pizza-enter' : ''}`}
+                  >
                     <div className="w-full md:w-32 h-32 flex-shrink-0 relative group cursor-pointer overflow-hidden rounded-lg border border-gray-700 hover:border-gold transition">
                       <img src={pizza.img} className="w-full h-full object-cover group-hover:opacity-70 transition" alt={pizza.name} />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <span className="text-[10px] font-bold uppercase tracking-widest bg-black/70 px-2 py-1 rounded">Upload</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-black/70 px-2 py-1 rounded">Nahrát</span>
                       </div>
                       <input 
                         type="file" 
@@ -214,26 +243,26 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="flex-grow grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-gray-500 text-xs mb-1">Name</label>
+                        <label className="block text-gray-500 text-xs mb-1">Název</label>
                         <input type="text" value={pizza.name} onChange={(e) => handlePizzaChange(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB', index, 'name', e.target.value)} className="w-full bg-zinc-900 border border-gray-800 rounded p-2 text-white outline-none focus:border-gold" />
                       </div>
                       <div>
-                        <label className="block text-gray-500 text-xs mb-1">Image URL (or upload left)</label>
+                        <label className="block text-gray-500 text-xs mb-1">URL obrázku (nebo nahrát vlevo)</label>
                         <input type="text" value={pizza.img} onChange={(e) => handlePizzaChange(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB', index, 'img', e.target.value)} className="w-full bg-zinc-900 border border-gray-800 rounded p-2 text-white outline-none focus:border-gold" />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-gray-500 text-xs mb-1">Description</label>
+                        <label className="block text-gray-500 text-xs mb-1">Popis</label>
                         <input type="text" value={pizza.desc} onChange={(e) => handlePizzaChange(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB', index, 'desc', e.target.value)} className="w-full bg-zinc-900 border border-gray-800 rounded p-2 text-white outline-none focus:border-gold" />
                       </div>
                       {activeTab === 'menuB' && (
                         <div className="flex items-center gap-2">
                           <input type="checkbox" checked={pizza.special} onChange={(e) => handlePizzaChange('pizzaB', index, 'special', e.target.checked)} className="w-4 h-4 accent-gold" />
-                          <label className="text-sm text-gray-400">Special (Gold Border)</label>
+                          <label className="text-sm text-gray-400">Speciální (zlatý rámeček)</label>
                         </div>
                       )}
                     </div>
                     <div className="flex items-end">
-                      <button onClick={() => removePizza(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB', index)} className="text-red-500 hover:text-red-400 p-2">Remove</button>
+                      <button onClick={() => removePizza(activeTab === 'menuA' ? 'pizzaA' : 'pizzaB', index)} className="text-red-500 hover:text-red-400 p-2">Odebrat</button>
                     </div>
                   </div>
                 ))}
@@ -243,31 +272,31 @@ const Dashboard: React.FC = () => {
 
           {activeTab === 'info' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-4 italic">General Information Settings</h2>
+              <h2 className="text-2xl font-bold mb-4 italic">Nastavení obecných informací</h2>
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h3 className="gold-accent font-bold uppercase tracking-widest text-sm">Opening Hours</h3>
+                  <h3 className="gold-accent font-bold uppercase tracking-widest text-sm">Otevírací doba</h3>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-1">Mon – Thu</label>
+                    <label className="block text-gray-400 text-sm mb-1">Po – čt</label>
                     <input type="text" name="monThu" value={data.openingHours.monThu} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-1">Fri – Sat</label>
+                    <label className="block text-gray-400 text-sm mb-1">Pá – so</label>
                     <input type="text" name="friSat" value={data.openingHours.friSat} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-1">Sunday</label>
+                    <label className="block text-gray-400 text-sm mb-1">Neděle</label>
                     <input type="text" name="sun" value={data.openingHours.sun} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <h3 className="gold-accent font-bold uppercase tracking-widest text-sm">Contact Info</h3>
+                  <h3 className="gold-accent font-bold uppercase tracking-widest text-sm">Kontakt</h3>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-1">Phone Number</label>
+                    <label className="block text-gray-400 text-sm mb-1">Telefon</label>
                     <input type="text" name="phone" value={data.contact.phone} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-sm mb-1">Address</label>
+                    <label className="block text-gray-400 text-sm mb-1">Adresa</label>
                     <input type="text" name="address" value={data.contact.address} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
                   </div>
                 </div>
