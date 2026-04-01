@@ -84,6 +84,6 @@ export const initialAppData: AppData = {
   },
   contact: {
     phone: "+420 777 513 848",
-    address: "Makovského 1394/8a, Praha 17"
+    address: "Makovského 1394/8a Praha 6-Řepy"
   }
 };

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../hooks/useAppData';
 import { Pizza } from '../data/pizzas';
+import { PIZZERIA_ADDRESS } from '../constants/location';
 
 const Dashboard: React.FC = () => {
-  const { data, updateData, storageError } = useAppData();
+  const { data, updateData, storageError, loading } = useAppData();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'hero' | 'menuA' | 'menuB' | 'info'>('hero');
   const [lastAddedPizzaId, setLastAddedPizzaId] = useState<string | null>(null);
@@ -15,6 +16,10 @@ const Dashboard: React.FC = () => {
       navigate('/login');
     }
   }, [navigate]);
+
+  if (loading) {
+    return <div className="min-h-screen bg-[#0a0a0a]" />;
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('pizzeria_auth');
@@ -297,7 +302,13 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-400 text-sm mb-1">Adresa</label>
-                    <input type="text" name="address" value={data.contact.address} onChange={handleInfoChange} className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold" />
+                    <input
+                      type="text"
+                      name="address"
+                      value={PIZZERIA_ADDRESS}
+                      disabled
+                      className="w-full bg-black border border-gray-800 rounded p-3 text-white outline-none focus:border-gold opacity-70 cursor-not-allowed"
+                    />
                   </div>
                 </div>
               </div>

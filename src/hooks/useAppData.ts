@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppData, initialAppData } from '../data/pizzas';
+import { supabase } from '../lib/supabaseClient';
+import { PIZZERIA_ADDRESS } from '../constants/location';
 
 const createId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -22,44 +24,64 @@ const ensurePizzaIds = (appData: AppData): AppData => {
 
 export const useAppData = () => {
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [data, setData] = useState<AppData>(() => {
-    const saved = localStorage.getItem('pizzeria_app_data');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return ensurePizzaIds({
-          ...initialAppData,
-          ...parsed,
-          hero: parsed.hero ? { ...initialAppData.hero, ...parsed.hero } : initialAppData.hero,
-          menu: parsed.menu ? { ...initialAppData.menu, ...parsed.menu } : initialAppData.menu,
-          openingHours: parsed.openingHours ? { ...initialAppData.openingHours, ...parsed.openingHours } : initialAppData.openingHours,
-          contact: parsed.contact ? { ...initialAppData.contact, ...parsed.contact } : initialAppData.contact,
-        });
-      } catch (e) {
-        console.error("Failed to parse saved data", e);
-        return ensurePizzaIds(initialAppData);
-      }
-    }
-    return ensurePizzaIds(initialAppData);
-  });
+  const [data, setData] = useState<AppData>(() => ensurePizzaIds(initialAppData));
 
   useEffect(() => {
-    try {
-      localStorage.setItem('pizzeria_app_data', JSON.stringify(data));
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        setStorageError('Úložiště je plné. Použijte menší obrázky nebo smažte nepoužívané.');
-      } else {
-        console.error('Failed to save data', e);
+    let isMounted = true;
+
+    async function load() {
+      try {
+        const { data: row, error } = await supabase
+          .from('app_data')
+          .select('data')
+          .eq('id', 1)
+          .single();
+
+        if (error) throw error;
+
+        const remote = (row?.data ?? {}) as Partial<AppData>;
+        const merged: AppData = ensurePizzaIds({
+          ...initialAppData,
+          ...remote,
+          hero: remote.hero ? { ...initialAppData.hero, ...remote.hero } : initialAppData.hero,
+          menu: remote.menu ? { ...initialAppData.menu, ...remote.menu } : initialAppData.menu,
+          openingHours: remote.openingHours
+            ? { ...initialAppData.openingHours, ...remote.openingHours }
+            : initialAppData.openingHours,
+          contact: remote.contact ? { ...initialAppData.contact, ...remote.contact } : initialAppData.contact,
+        });
+
+        merged.contact.address = PIZZERIA_ADDRESS;
+        if (isMounted) setData(merged);
+      } catch (e) {
+        console.error('Failed to load data from Supabase', e);
+        if (isMounted) setStorageError('Nepodařilo se načíst data ze serveru. Zkuste to prosím znovu.');
+      } finally {
+        if (isMounted) setLoading(false);
       }
     }
-  }, [data]);
 
-  const updateData = (newData: AppData) => {
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const updateData = useCallback(async (newData: AppData) => {
     setStorageError(null);
-    setData(newData);
-  };
+    const patched: AppData = { ...newData, contact: { ...newData.contact, address: PIZZERIA_ADDRESS } };
+    setData(patched);
 
-  return { data, updateData, storageError };
+    try {
+      const { error } = await supabase.from('app_data').update({ data: patched }).eq('id', 1);
+      if (error) throw error;
+    } catch (e) {
+      console.error('Failed to save data to Supabase', e);
+      setStorageError('Nepodařilo se uložit změny na server. Zkontrolujte připojení a zkuste to znovu.');
+    }
+  }, []);
+
+  return { data, updateData, storageError, loading };
 };
