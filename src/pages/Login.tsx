@@ -13,17 +13,17 @@ const Login: React.FC = () => {
       localStorage.setItem('pizzeria_auth', 'true');
       navigate('/dashboard');
     } else {
-      setError('Invalid username or password');
+      setError('Neplatné uživatelské jméno nebo heslo');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] px-4">
       <div className="bg-zinc-900 p-8 rounded-2xl border border-gold w-full max-w-md shadow-2xl">
-        <h2 className="text-3xl font-bold gold-accent mb-6 text-center italic">Dashboard Login</h2>
+        <h2 className="text-3xl font-bold gold-accent mb-6 text-center italic">Přihlášení do administrace</h2>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Username</label>
+            <label className="block text-gray-400 text-sm mb-1">Uživatelské jméno</label>
             <input 
               type="text" 
               value={username} 
@@ -33,7 +33,7 @@ const Login: React.FC = () => {
             />
           </div>
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Password</label>
+            <label className="block text-gray-400 text-sm mb-1">Heslo</label>
             <input 
               type="password" 
               value={password} 
@@ -47,7 +47,7 @@ const Login: React.FC = () => {
             type="submit" 
             className="w-full bg-gold text-black font-bold py-3 rounded-lg hover:bg-yellow-600 transition uppercase tracking-widest"
           >
-            Login
+            Přihlásit se
           </button>
         </form>
       </div>
